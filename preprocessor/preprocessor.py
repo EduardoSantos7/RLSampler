@@ -13,10 +13,10 @@ class Preprocessor:
     MIN_SEGMENT_LEN = 4
     AVG_FEATURES_INTERVALS = 60000
 
-    def process(self, workers=3):
+    def process(self, workers=8):
         """Read the data records and create data features
         """
-        accelerometer_data = dm.trip_data_to_df('Pixel_accelerometer')
+        accelerometer_data = dm.trip_data_to_df('Pixel_gyro_1_042317_1126')
         segments = self.split_segments(accelerometer_data)
 
         dim = ceil(len(segments) / workers)

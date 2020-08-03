@@ -29,5 +29,5 @@ class DataManager:
         trip_path = f'{getcwd()}{TRIP_PATH} {trip}'
         files = listdir(trip_path)
         # Unpack the close match
-        [file] = get_close_matches(pseudoname, files)
+        file = get_close_matches(pseudoname, files)[0]
         return file
