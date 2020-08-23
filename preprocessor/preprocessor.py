@@ -13,10 +13,34 @@ class Preprocessor:
     MIN_SEGMENT_LEN = 4
     AVG_FEATURES_INTERVALS = 60000
 
-    def process(self, workers=8):
+    def process(self):
+        # with ProcessPoolExecutor(max_workers=4) as executor:
+        #     files = ['Pixel_accelerometer', 'Pixel_gyro_1_042317_1126']
+        #     futures = [
+        #         executor.submit(
+        #             self.feature_processing, file) for file in files]
+
+        files = ['Pixel_accelerometer', 'Pixel_gyro_1_042317_1126']
+        results = []
+
+        for file in files:
+            result = self.feature_processing(file)
+            result.rename(columns={'msm': f'msm_{file}',
+                                   'variance': f'variance_{file}'}, inplace=True)
+            results.append(result)
+
+        # results = []
+        # for future in futures:
+            # results.append(future.result())
+
+        pre_result = pd.concat(results, axis=1)
+        result = self.remove_dup_columns(pre_result)
+        return result
+
+    def feature_processing(self, filename, workers=8):
         """Read the data records and create data features
         """
-        accelerometer_data = dm.trip_data_to_df('Pixel_gyro_1_042317_1126')
+        accelerometer_data = dm.trip_data_to_df(filename)
         segments = self.split_segments(accelerometer_data)
 
         dim = ceil(len(segments) / workers)
@@ -55,7 +79,8 @@ class Preprocessor:
 
         avg_features_df = pd.concat(average_features, ignore_index=True)
         avg_features_df = avg_features_df.sort_values('Time')
-        print(avg_features_df)
+
+        return avg_features_df
 
     def split_segments(self, df, time_intervals=None):
         if not time_intervals:
@@ -129,3 +154,12 @@ class Preprocessor:
             segment_features.append(data)
 
         return pd.DataFrame(segment_features)
+
+    def remove_dup_columns(self, frame):
+        keep_names = set()
+        keep_icols = list()
+        for icol, name in enumerate(frame.columns):
+            if name not in keep_names:
+                keep_names.add(name)
+                keep_icols.append(icol)
+        return frame.iloc[:, keep_icols]
