@@ -35,7 +35,21 @@ class Preprocessor:
 
         pre_result = pd.concat(results, axis=1)
         result = self.remove_dup_columns(pre_result)
-        return result
+        # print(result)
+
+        data = dm.trip_data_to_df("Pixel_activity")
+        # Average features to 1 minute intervals
+        data_segments = self.split_segments(
+            data, time_intervals=self.AVG_FEATURES_INTERVALS)
+
+        avg_classification_df = self.average_classification(data_segments)
+        print(avg_classification_df)
+        print(result)
+        joined_df = self.join_sensors_classification_data(
+            result, avg_classification_df)
+        print(joined_df)
+
+        return joined_df
 
     def feature_processing(self, filename, workers=8):
         """Read the data records and create data features
@@ -88,7 +102,7 @@ class Preprocessor:
 
         i = 0
         res = []
-        while i < len(df):
+        while i < len(df) - 1:
             temp = df[(df.Time >= df.iloc[i].Time) & (df.Time <
                                                       df.iloc[i].Time + time_intervals)]
             while len(temp) < self.MIN_SEGMENT_LEN:
@@ -163,3 +177,59 @@ class Preprocessor:
                 keep_names.add(name)
                 keep_icols.append(icol)
         return frame.iloc[:, keep_icols]
+
+    def average_classification(self, segments):
+        segments_classification = []
+
+        for segment in segments:
+            segment_len = len(segment)
+            data = {
+                # Time will be the mid time in the segment
+                'Time': segment['Time'].iloc[segment_len // 2],
+                'PROBABLE': self.most_frequent_classification(segment)
+            }
+
+            segments_classification.append(data)
+
+        return pd.DataFrame(segments_classification)
+
+    def most_frequent_classification(self, segment):
+        counter = {}
+        for label in segment['PROBABLE']:
+            counter[label] = counter.get(label, 0) + 1
+
+        max_appears = max(counter.values())
+
+        for label, count in counter.items():
+            if count == max_appears:
+                return label
+
+    def join_sensors_classification_data(self, sensors_df, class_df, drop_na_classes=True):
+        class__assigned = []
+        for sensor_row in range(len(sensors_df)):
+            class__assigned.append(self.get_class_assigned(
+                sensors_df.iloc[sensor_row]['Time'], class_df))
+
+        joined_df = sensors_df.copy(deep=True)
+        joined_df['PROBABLE'] = class__assigned
+
+        if drop_na_classes:
+            joined_df.dropna(subset=['PROBABLE'], inplace=True)
+
+        return joined_df
+
+    def get_class_assigned(self, time, class_df):
+        half_avg_features_time = self.AVG_FEATURES_INTERVALS // 2
+        time_range = class_df[(class_df.Time >= time - half_avg_features_time) &
+                              (class_df.Time < time + half_avg_features_time)]
+
+        class_assigned = None
+        current_min_range_time = float('inf')
+
+        for row in range(len(time_range)):
+            time_diff = abs(time_range.iloc[row]['Time'] - time)
+            if time_diff < current_min_range_time:
+                current_min_range_time = time_diff
+                class_assigned = time_range.iloc[row]['PROBABLE']
+
+        return class_assigned
