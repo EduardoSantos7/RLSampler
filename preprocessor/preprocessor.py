@@ -14,47 +14,65 @@ class Preprocessor:
     AVG_FEATURES_INTERVALS = 60000
 
     def process(self):
-        # with ProcessPoolExecutor(max_workers=4) as executor:
-        #     files = ['Pixel_accelerometer', 'Pixel_gyro_1_042317_1126']
-        #     futures = [
-        #         executor.submit(
-        #             self.feature_processing, file) for file in files]
+        trips = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        workers = 4
+        dim = ceil(len(trips) / workers)
+        chunks = (trips[k: k + dim] for k in range(0, len(trips), dim))
+        trips_df = []
 
-        files = ['Pixel_accelerometer', 'Pixel_gyro_1_042317_1126']
-        results = []
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(
+                    self.get_joined_trips_data, chunk) for chunk in chunks
+            ]
 
-        for file in files:
-            result = self.feature_processing(file)
-            result.rename(columns={'msm': f'msm_{file}',
-                                   'variance': f'variance_{file}'}, inplace=True)
-            results.append(result)
+        for future in futures:
+            trips_df.extend(future.result())
 
-        # results = []
-        # for future in futures:
-            # results.append(future.result())
+        complete = pd.concat(trips_df)
+        complete.to_csv(f'data/{len(trips)}_trips.csv')
 
-        pre_result = pd.concat(results, axis=1)
-        result = self.remove_dup_columns(pre_result)
-        # print(result)
+    def get_joined_trips_data(self, trips):
 
-        data = dm.trip_data_to_df("Pixel_activity")
-        # Average features to 1 minute intervals
-        data_segments = self.split_segments(
-            data, time_intervals=self.AVG_FEATURES_INTERVALS)
+        joineds = []
 
-        avg_classification_df = self.average_classification(data_segments)
-        print(avg_classification_df)
-        print(result)
-        joined_df = self.join_sensors_classification_data(
-            result, avg_classification_df)
-        print(joined_df)
+        for trip in trips:
+            files = ['Pixel_accelerometer', f'Pixel_gyro_{trip}']
+            results = []
 
-        return joined_df
+            for file in files:
+                result = self.feature_processing(file, trip=trip)
+                file = self.clean_file_name(file)
+                result.rename(columns={'msm': f'msm_{file}',
+                                       'variance': f'variance_{file}'}, inplace=True)
+                results.append(result)
 
-    def feature_processing(self, filename, workers=8):
+            # results = []
+            # for future in futures:
+                # results.append(future.result())
+
+            pre_result = pd.concat(results, axis=1)
+            result = self.remove_dup_columns(pre_result)
+            # print(result)
+
+            data = dm.trip_data_to_df("Pixel_activity", trip=trip)
+            # Average features to 1 minute intervals
+            data_segments = self.split_segments(
+                data, time_intervals=self.AVG_FEATURES_INTERVALS)
+
+            avg_classification_df = self.average_classification(data_segments)
+
+            joined_df = self.join_sensors_classification_data(
+                result, avg_classification_df)
+
+            joineds.append(joined_df)
+
+        return joineds
+
+    def feature_processing(self, filename, trip=1, workers=8):
         """Read the data records and create data features
         """
-        accelerometer_data = dm.trip_data_to_df(filename)
+        accelerometer_data = dm.trip_data_to_df(filename, trip=trip)
         segments = self.split_segments(accelerometer_data)
 
         dim = ceil(len(segments) / workers)
@@ -233,3 +251,12 @@ class Preprocessor:
                 class_assigned = time_range.iloc[row]['PROBABLE']
 
         return class_assigned
+
+    def clean_file_name(self, filename):
+        NAMES = [
+            'accelerometer', 'gravity', 'gyro', 'linacc', 'location', 'magneticField', 'rotation'
+        ]
+        for correct_name in NAMES:
+            if correct_name in filename:
+                return correct_name
+        return ""
