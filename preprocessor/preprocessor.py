@@ -1,5 +1,6 @@
 
 import math
+import logging
 import pandas as pd
 
 from math import ceil
@@ -30,13 +31,17 @@ class Preprocessor:
             trips_df.extend(future.result())
 
         complete = pd.concat(trips_df)
-        complete.to_csv(f'data/{len(trips)}_trips.csv')
+        # Simplify classes
+        complete['PROBABLE'] = complete['PROBABLE'].map(
+            lambda x: x if x == "IN_VEHICLE" else "OTHER")
+        complete.to_csv(f'data/{len(trips)}_trips.csv', index=False)
 
     def get_joined_trips_data(self, trips):
 
         joineds = []
 
         for trip in trips:
+            print(f"processing trip {trip}")
             files = ['Pixel_accelerometer', f'Pixel_gyro_{trip}']
             results = []
 
@@ -120,13 +125,19 @@ class Preprocessor:
 
         i = 0
         res = []
-        while i < len(df) - 1:
+        while i < len(df):
+            tries = 0
             temp = df[(df.Time >= df.iloc[i].Time) & (df.Time <
                                                       df.iloc[i].Time + time_intervals)]
             while len(temp) < self.MIN_SEGMENT_LEN:
+                tries += 1
+                len_temp_before = len(temp)
                 time_intervals *= 2
                 temp = df[(df.Time >= df.iloc[i].Time) & (df.Time <
                                                           df.iloc[i].Time + time_intervals)]
+                # if the len is the same then there are no more element after 10 tries
+                if len(temp) == len_temp_before and tries == 10:
+                    break
 
             i += len(temp)
             res.append(temp)
