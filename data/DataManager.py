@@ -34,3 +34,7 @@ class DataManager:
         # Unpack the close match
         # file = get_close_matches(pseudoname, files)[0]
         return file
+
+    @staticmethod
+    def get_joined_data(how_many_trips=14):
+        return pd.read_csv(f"data/{how_many_trips}_trips.csv")
