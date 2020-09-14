@@ -6,8 +6,6 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
-#sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
-
 from data.DataManager import DataManager, ACCELEROMETER_PSEUDONAME
 
 
@@ -16,15 +14,14 @@ class MLManager:
     @staticmethod
     def logistic_regression(data):
 
-        X_train, X_test, y_train, y_test = train_test_split(
-            data[['msm_gyro']], data.PROBABLE, test_size=0.1)
-        model = LogisticRegression()
+        X_train, X_test, y_train, y_test = MLManager.split_train_test(data)
+        model = LogisticRegression(solver='lbfgs')
         model.fit(X_train, y_train)
 
         return model, X_train, X_test, y_train, y_test
 
     @staticmethod
-    def compate_outpt(outs_1, outs_2):
+    def compate_output(outs_1, outs_2):
         goods = 0
 
         for out_1, out_2 in zip(outs_1, outs_2):
@@ -32,3 +29,7 @@ class MLManager:
                 goods += 1
 
         return goods / len(outs_1)
+
+    @staticmethod
+    def split_train_test(data, x=['msm_gyro'], y='PROBABLE', test_size=0.1):
+        return train_test_split(data[x], data[y], test_size=test_size)

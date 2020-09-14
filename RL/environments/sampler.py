@@ -1,6 +1,8 @@
 import random as rd
 import pandas as pd
 
+from predictive.MLManager import MLManager
+
 
 # Types of state in env.
 BOTH = 'both'
@@ -17,11 +19,6 @@ INCREASE_FREQUENCY = 5
 
 
 class Sampler:
-
-    MIN_SAMPLES = 1
-    MAX_SAMPLES = float('inf')
-    MIN_FREQUENCY = 0
-    MAX_FREQUENCY = float('inf')
 
     def __init__(self, source, type_=BOTH, samples=1, frequency=0):
         """Init the env.
@@ -47,11 +44,19 @@ class Sampler:
         self.action_space = 6 if self.type == BOTH else 3
         self.samples_taken = []
         self.current_source_ptr = 0
+        self.MIN_SAMPLES = 1
+        self.MAX_SAMPLES = len(self.source)
+        self.MIN_FREQUENCY = 0
+        self.MAX_FREQUENCY = len(self.source)
+        self.base_model, X_train, X_test, y_train, y_test = MLManager.logistic_regression(
+            self.source)
 
     def reset(self, random=True):
+        self.current_source_ptr = 0
+
         if not random:
             if self.type == BOTH:
-                return (1, 0)
+                return (self.MIN_SAMPLES, self.MIN_FREQUENCY)
             elif self.type == SAMPLES:
                 self.samples = self.MIN_SAMPLES
                 return (self.MIN_SAMPLES)
@@ -60,8 +65,8 @@ class Sampler:
                 return (self.MIN_FREQUENCY)
 
         # Get a random sample and frequency size from 1 to the number of rows
-        random_sample_size = rd.randint(1, self.source.shape[0] + 1)
-        random_frequency_size = rd.randint(1, self.source.shape[0] + 1)
+        random_sample_size = rd.randint(1, self.source.shape[0] - 1)
+        random_frequency_size = rd.randint(0, self.source.shape[0] - 1)
         if self.type == BOTH:
             self.samples = random_sample_size
             self.frequency = random_frequency_size
@@ -82,26 +87,32 @@ class Sampler:
         elif action == KEEP_SAME_SAMPLES:
             pass
         elif action == INCREASE_SAMPLES:
-            if self.samples < self.MAX_SAMPLES:
+            if self.samples < self.MAX_SAMPLES - 1:
                 self.samples += 1
         elif action == DECREASE_FREQUENCY:
-            if self.frequency > 0:
+            if self.frequency > self.MIN_FREQUENCY:
                 self.frequency -= 1
         elif action == KEEP_SAME_FREQUENCY:
             pass
         elif action == INCREASE_FREQUENCY:
-            if self.frequency < self.MAX_FREQUENCY:
+            if self.frequency < self.MAX_FREQUENCY - 1:
                 self.frequency += 1
 
         # With this approach each step the agent sampling
         self.take_sample()
 
-    # return self.state, reward, done, info
+        observation = self.get_observation()
+        done = self.is_done()
+        reward = self.compute_reward()
+        info = {}
+
+        return observation, reward, done, info
 
     def take_sample(self):
         sample = self.source.iloc[
             self.current_source_ptr: self.current_source_ptr + self.samples]
-        self.current_source_ptr += self.samples + self.frequency
+        next_pos = self.samples + self.frequency
+        self.current_source_ptr += next_pos if next_pos < self.MAX_SAMPLES else self.MAX_SAMPLES
         self.samples_taken.append(sample)
 
     def get_samples_taken(self):
@@ -109,3 +120,21 @@ class Sampler:
 
     def get_current_sample_frequency(self):
         return self.samples, self.frequency
+
+    def get_observation(self):
+        return self.samples, self.frequency
+
+    def is_done(self):
+        return True if self.current_source_ptr >= self.MAX_SAMPLES - 1 else False
+
+    def compute_reward(self):
+        sampled_data = self.get_samples_taken()
+        rl_model, _, _, _, _ = MLManager.logistic_regression(sampled_data)
+        _, X_test, _, _ = MLManager.split_train_test(self.source)
+
+        base_reward = MLManager.compate_output(
+            self.base_model.predict(X_test), rl_model.predict(X_test))
+
+        len_diff_discount = len(sampled_data) / len(self.source)
+
+        return base_reward - len_diff_discount
