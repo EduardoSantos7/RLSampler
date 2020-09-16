@@ -53,6 +53,7 @@ class Sampler:
 
     def reset(self, random=True):
         self.current_source_ptr = 0
+        self.samples_taken = []
 
         if not random:
             if self.type == BOTH:
@@ -72,7 +73,7 @@ class Sampler:
             self.frequency = random_frequency_size
             return (random_sample_size, random_frequency_size)
         elif self.type == SAMPLES:
-            self.samples = random_sample_siz
+            self.samples = random_sample_size
             return random_sample_size
         else:  # Frequency
             self.frequency = random_frequency_size
@@ -103,7 +104,7 @@ class Sampler:
 
         observation = self.get_observation()
         done = self.is_done()
-        reward = self.compute_reward()
+        reward = self.compute_reward() if done else 0
         info = {}
 
         return observation, reward, done, info
@@ -130,6 +131,11 @@ class Sampler:
     def compute_reward(self):
         sampled_data = self.get_samples_taken()
         rl_model, _, _, _, _ = MLManager.logistic_regression(sampled_data)
+
+        # When the samples only has 1 class in `y` and the fit is not possible
+        if not rl_model:
+            return 0
+
         _, X_test, _, _ = MLManager.split_train_test(self.source)
 
         base_reward = MLManager.compate_output(
