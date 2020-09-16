@@ -15,6 +15,12 @@ class QAgent:
         self.debug = debug
         self.q_table = q_table
         self.rewards_per_episode = []
+        self.statics = {
+            'episodes': [],
+            'rewards': [],
+            'epsilon': [],
+            'sample_size': [],
+        }
 
     def process(self, episodes=2000, gamma=0.99, alpha=0.01, epsilon=1.0, epsilon_decrease=.001, policy="e-greedy"):
         self.init_q_tabe()
@@ -24,12 +30,18 @@ class QAgent:
             # Update epsilon each 5 episodes
             if episode and episode % 5 == 0:
                 epsilon = max(0.05, epsilon - epsilon_decrease)
-                print(f'''
-                    Episode: {episode}
-                    Rewards: {mean(self.rewards_per_episode or [0])}
-                    Epsilon: {epsilon}
-                    Samples Size: {len(self.env.get_samples_taken())}
-                    ''')
+                self.statics['episodes'].append(episode)
+                self.statics['rewards'].append(
+                    mean(self.rewards_per_episode or [0]))
+                self.statics['epsilon'].append(epsilon)
+                self.statics['sample_size'].append(
+                    len(self.env.get_samples_taken()))
+                # print(f'''
+                #     Episode: {episode}
+                #     Rewards: {mean(self.rewards_per_episode or [0])}
+                #     Epsilon: {epsilon}
+                #     Samples Size: {len(self.env.get_samples_taken())}
+                #     ''')
 
             state = self.env.reset(random=False)
             done = False

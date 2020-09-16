@@ -1,9 +1,10 @@
 import time
 
-from predictive.MLManager import MLManager
 from preprocessor.preprocessor import Preprocessor
-from data.DataManager import DataManager
 from RL.environments.sampler import Sampler
+from predictive.MLManager import MLManager
+from data.DataManager import DataManager
+from utils.PlotUtils import PlotUtils
 from RL.agents.agent import QAgent
 
 from matplotlib import pyplot as plt
@@ -20,7 +21,11 @@ data = DataManager.get_joined_data()
 
 env = Sampler(data)
 agent = QAgent(env)
-agent.process()
+agent.process(episodes=3000)
+PlotUtils.different_axis(agent.statics.get('episodes'), agent.statics.get(
+    'rewards'), agent.statics.get('sample_size'), agent.statics.get('epsilon'))
+# PlotUtils.plot_lines([agent.statics.get('episodes')], [
+#  agent.statics.get('rewards')], ['Rewards per episode'])
 # pprint.pprint(agent.q_table)
 # print(s.reset(random=False))
 # s.step(2)

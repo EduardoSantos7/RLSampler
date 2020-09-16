@@ -3,11 +3,10 @@ import os
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
-from data.DataManager import DataManager, ACCELEROMETER_PSEUDONAME
+from data.DataManager import DataManager
 
 
 class MLManager:
@@ -20,7 +19,7 @@ class MLManager:
         if MLManager._has_only_one_class(y_train):
             return None, None, None, None, None
 
-        model = LogisticRegression(solver='newton-cg')
+        model = LogisticRegression(solver='lbfgs')
         model.fit(X_train, y_train)
 
         return model, X_train, X_test, y_train, y_test
