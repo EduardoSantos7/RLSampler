@@ -22,7 +22,7 @@ class QAgent:
             'sample_size': [],
         }
 
-    def process(self, episodes=2000, gamma=0.99, alpha=0.01, epsilon=1.0, epsilon_decrease=.001, policy="e-greedy"):
+    def process(self, episodes=2000, gamma=0.99, alpha=0.01, epsilon=1.0, epsilon_decrease=.0001, policy="e-greedy"):
         self.init_q_tabe()
 
         for episode in range(episodes):
@@ -48,7 +48,7 @@ class QAgent:
             rewards = 0
             while not done:
                 action = self.pick_action(
-                    self.q_table[state], epsilon=epsilon, policy=policy)
+                    self.q_table[state], epsilon=epsilon, policy="soft_max")
                 new_state, reward, done, info = self.env.step(action)
                 rewards += reward
 

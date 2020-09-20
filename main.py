@@ -21,7 +21,7 @@ data = DataManager.get_joined_data()
 
 env = Sampler(data)
 agent = QAgent(env)
-agent.process(episodes=3000)
+agent.process(episodes=10000)
 PlotUtils.different_axis(agent.statics.get('episodes'), agent.statics.get(
     'rewards'), agent.statics.get('sample_size'), agent.statics.get('epsilon'))
 # PlotUtils.plot_lines([agent.statics.get('episodes')], [

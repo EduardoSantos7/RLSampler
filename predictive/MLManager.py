@@ -35,7 +35,7 @@ class MLManager:
         return goods / len(outs_1)
 
     @staticmethod
-    def split_train_test(data, x=['msm_gyro'], y='PROBABLE', test_size=0.1):
+    def split_train_test(data, x=['msm_gyro', 'msm_accelerometer'], y='PROBABLE', test_size=0.1):
         return train_test_split(data[x], data[y], test_size=test_size)
 
     @staticmethod

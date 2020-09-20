@@ -130,6 +130,10 @@ class Sampler:
 
     def compute_reward(self):
         sampled_data = self.get_samples_taken()
+
+        if len(sampled_data) < 2:
+            return 0
+
         rl_model, _, _, _, _ = MLManager.logistic_regression(sampled_data)
 
         # When the samples only has 1 class in `y` and the fit is not possible
